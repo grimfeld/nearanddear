@@ -28,7 +28,7 @@ export const Header = () => {
       <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
         <div className="flex items-center gap-6">
           <Link to="/app/dashboard" className="text-lg font-semibold tracking-tight">
-            Mapri
+            Near & Dear
           </Link>
           <nav className="hidden items-center gap-4 text-sm font-medium text-muted-foreground md:flex">
             <Link
@@ -37,6 +37,12 @@ export const Header = () => {
             >
               Dashboard
             </Link>
+          <Link
+            to="/app/discover"
+            className={location.pathname.includes("discover") ? "text-foreground" : ""}
+          >
+            Discover
+          </Link>
             <Link
               to="/app/profile"
               className={location.pathname.includes("profile") ? "text-foreground" : ""}
@@ -65,6 +71,7 @@ export const Header = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => navigate("/app/dashboard")}>Dashboard</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate("/app/discover")}>Discover</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate("/app/profile")}>Profile</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

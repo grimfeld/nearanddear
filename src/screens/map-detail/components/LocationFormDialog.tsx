@@ -20,7 +20,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Combobox } from "@/components/ui/combobox";
 import type { LocationPayload } from "@/services/locations";
+import { AddressSearchInput, type GeocodingResult } from "@/components/AddressSearchInput";
+import { TagInput } from "@/components/TagInput";
+import { LOCATION_CATEGORIES, getCategoryValue } from "@/lib/locationCategories";
 
 const timePattern = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
@@ -39,7 +43,7 @@ type LocationFormValues = {
   description: string;
   address: string;
   type: string;
-  tags: string;
+  tags: string[];
   latitude: string;
   longitude: string;
   website: string;
@@ -55,16 +59,17 @@ type LocationFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: LocationPayload) => Promise<void>;
   initialValues?: LocationPayload & { id?: string };
+  mapId: string;
 };
 
-export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues }: LocationFormDialogProps) => {
+export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues, mapId }: LocationFormDialogProps) => {
   const form = useForm<LocationFormValues>({
     defaultValues: {
       name: "",
       description: "",
       address: "",
       type: "",
-      tags: "",
+      tags: [],
       latitude: "",
       longitude: "",
       phone: "",
@@ -124,7 +129,7 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
         description: initialValues.description ?? "",
         address: initialValues.address ?? "",
         type: initialValues.type ?? "",
-        tags: initialValues.tags?.join(", ") ?? "",
+        tags: initialValues.tags?.map((tag) => tag.toLowerCase()) ?? [],
         latitude: initialValues.latitude.toString(),
         longitude: initialValues.longitude.toString(),
         phone: initialValues.phone ?? "",
@@ -156,11 +161,6 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
       return;
     }
 
-    const tags = values.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-
     const hasHours = values.dailyOpen && values.dailyClose;
     const opening_hours = hasHours
       ? days.reduce<Record<string, { open: string; close: string }>>((acc, day) => {
@@ -176,7 +176,7 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
       latitude,
       longitude,
       type: values.type?.trim() || null,
-      tags: tags.length ? tags : null,
+      tags: values.tags.length > 0 ? values.tags : null,
       website: values.website?.trim() || null,
       phone: values.phone?.trim() || null,
       google_place_id: values.googlePlaceId?.trim() || null,
@@ -230,7 +230,33 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
                 <FormItem className="md:col-span-2">
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Main Street" {...field} />
+                    <AddressSearchInput
+                      placeholder="123 Main Street"
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(value)}
+                      onSelectResult={(result: GeocodingResult) => {
+                        const latitude = Number.parseFloat(result.lat);
+                        const longitude = Number.parseFloat(result.lon);
+                        form.setValue("address", result.display_name, { shouldDirty: true });
+                        if (!Number.isNaN(latitude)) {
+                          form.setValue("latitude", latitude.toFixed(6), { shouldDirty: true });
+                          form.clearErrors("latitude");
+                        }
+                        if (!Number.isNaN(longitude)) {
+                          form.setValue("longitude", longitude.toFixed(6), { shouldDirty: true });
+                          form.clearErrors("longitude");
+                        }
+                        form.clearErrors("address");
+
+                        if (!form.getValues("type") && result.type) {
+                          const categoryValue = getCategoryValue(result.type);
+                          if (categoryValue) {
+                            form.setValue("type", categoryValue, { shouldDirty: true });
+                          }
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -242,9 +268,16 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Cafe" {...field} />
-                  </FormControl>
+                  <Combobox
+                    options={[
+                      { value: "", label: "No category" },
+                      ...LOCATION_CATEGORIES,
+                    ]}
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select a category"
+                    emptyMessage="No categories found"
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -256,7 +289,12 @@ export const LocationFormDialog = ({ open, onOpenChange, onSubmit, initialValues
                 <FormItem>
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input placeholder="wifi, vegan" {...field} />
+                    <TagInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      mapId={mapId}
+                      placeholder="Add tags..."
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

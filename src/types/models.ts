@@ -6,10 +6,14 @@ export type MapRecord = Database["public"]["Tables"]["maps"]["Row"] & {
   member_count?: number;
   location_count?: number;
   average_rating?: number | null;
+  favorite_count?: number;
+  is_favorite?: boolean;
+  owner?: Profile | null;
 };
 export type MapMember = Database["public"]["Tables"]["map_members"]["Row"] & {
   profile?: Profile;
 };
+export type MapFavorite = Database["public"]["Tables"]["map_favorites"]["Row"];
 export type LocationRecord = Database["public"]["Tables"]["locations"]["Row"] & {
   average_rating?: number | null;
   review_count?: number;

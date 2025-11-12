@@ -12,7 +12,7 @@ import { mapKeys } from "@/hooks/useMaps";
 
 
 export const useLocationMutations = (mapId: string) => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const supabase = useSupabase();
   const queryClient = useQueryClient();
 
@@ -26,8 +26,9 @@ export const useLocationMutations = (mapId: string) => {
 
   const create = useMutation({
     mutationFn: async (payload: LocationPayload) => {
-      if (!profile) throw new Error("Sign in required");
-      return createLocation(supabase, mapId, profile.id, payload);
+      const actorId = profile?.id ?? user?.id;
+      if (!actorId) throw new Error("Sign in required");
+      return createLocation(supabase, mapId, actorId, payload);
     },
     onSuccess: async () => {
       await invalidate();
@@ -38,7 +39,7 @@ export const useLocationMutations = (mapId: string) => {
 
   const update = useMutation({
     mutationFn: ({ locationId, payload }: { locationId: string; payload: Partial<LocationPayload> }) =>
-      updateLocation(supabase, locationId, payload),
+      updateLocation(supabase, locationId, mapId, payload),
     onSuccess: async () => {
       await invalidate();
       toast.success("Location updated");

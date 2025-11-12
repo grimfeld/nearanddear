@@ -11,7 +11,17 @@ import { useMaps } from "@/hooks/useMaps";
 import type { MapRecord } from "@/types/models";
 
 export const DashboardPage = () => {
-  const { data: maps, isLoading, createMap, updateMap, deleteMap } = useMaps();
+  const {
+    data: maps,
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+    createMap,
+    updateMap,
+    deleteMap,
+  } = useMaps();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeMap, setActiveMap] = useState<MapRecord | null>(null);
   const [search, setSearch] = useState("");
@@ -25,6 +35,9 @@ export const DashboardPage = () => {
       )
     );
   }, [maps, search]);
+
+  const errorMessage =
+    error instanceof Error ? error.message : "Please check your connection and try again.";
 
   const handleCreate = () => {
     setActiveMap(null);
@@ -59,9 +72,10 @@ export const DashboardPage = () => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{maps?.length ?? 0} total maps</span>
-          {maps && filteredMaps.length !== maps.length && (
+          {maps && filteredMaps.length !== maps.length ? (
             <span>• showing {filteredMaps.length}</span>
-          )}
+          ) : null}
+          {isFetching ? <span>• refreshing…</span> : null}
         </div>
         <Input
           value={search}
@@ -71,7 +85,17 @@ export const DashboardPage = () => {
         />
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-12 py-16 text-center text-destructive">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Unable to load your maps</h2>
+            <p className="text-sm opacity-80">{errorMessage}</p>
+          </div>
+          <Button onClick={() => refetch()} variant="outline">
+            Try again
+          </Button>
+        </div>
+      ) : isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-48 rounded-xl" />

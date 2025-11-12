@@ -90,7 +90,7 @@ export const ProfilePage = () => {
       return;
     }
 
-    if (!profile) return;
+    if (!user?.id) return;
     const tags = values.favoriteTags
       ?.split(",")
       .map((tag) => tag.trim())
@@ -104,11 +104,13 @@ export const ProfilePage = () => {
       favorite_tags: tags?.length ? tags : null,
     };
 
+    const upsertPayload = {
+      id: user.id,
+      ...updatePayload,
+    };
+
     const client = supabase as any;
-    const { error } = await client
-      .from("profiles")
-      .update(updatePayload)
-      .eq("id", profile.id);
+    const { error } = await client.from("profiles").upsert(upsertPayload, { onConflict: "id" });
 
     if (error) {
       toast.error(error.message);

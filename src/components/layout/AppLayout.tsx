@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 
 export const AppLayout = () => {
   return (
@@ -15,6 +16,7 @@ export const AppLayout = () => {
           </div>
         </main>
       </div>
+      <OnboardingModal />
     </div>
   );
 };

@@ -19,15 +19,18 @@ export const getSupabaseClient = () => {
     return browserClient;
   }
 
-  browserClient = createClient<Database, "public">(supabaseUrl ?? "", supabaseAnonKey ?? "", {
-    auth: {
-      persistSession: true,
-      storageKey: "mapri-auth",
-    },
-  });
+  browserClient = createClient<Database, "public">(
+    supabaseUrl ?? "",
+    supabaseAnonKey ?? "",
+    {
+      auth: {
+        persistSession: true,
+        storageKey: "nearanddear-auth",
+      },
+    }
+  );
 
   return browserClient;
 };
 
 export type SupabaseClientType = SupabaseClient<Database, "public">;
-

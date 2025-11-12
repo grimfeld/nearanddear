@@ -17,7 +17,7 @@ import { useMapDetail } from "@/hooks/useMaps";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useAuth } from "@/providers/AuthProvider";
 import { useSupabase } from "@/providers/SupabaseProvider";
-import { addMapMember, removeMapMember } from "@/services/maps";
+import { removeMapMember } from "@/services/maps";
 import type { LocationPayload } from "@/services/locations";
 import { calculateDistanceKm, isLocationOpenNow } from "@/lib/geo";
 import { Input } from "@/components/ui/input";
@@ -62,9 +62,9 @@ export const MapDetailPage = () => {
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewLocation, setReviewLocation] = useState<DerivedLocation | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MapRecord["member_role"]>("viewer");
-  const [isInviting, setIsInviting] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
   const effectiveMapId = mapId ?? "";
   const mapMutations = useLocationMutations(effectiveMapId);
@@ -119,13 +119,6 @@ export const MapDetailPage = () => {
     });
   }, [mapData, userLocation]);
 
-  const availableTypes = useMemo(() => {
-    const types = new Set<string>();
-    enrichedLocations.forEach((location) => {
-      if (location.type) types.add(location.type);
-    });
-    return Array.from(types).sort();
-  }, [enrichedLocations]);
 
   const filteredLocations = useMemo(() => {
     return enrichedLocations
@@ -264,7 +257,6 @@ export const MapDetailPage = () => {
       <LocationFilters
         filters={filters}
         onChange={setFilters}
-        availableTypes={availableTypes}
         onRequestLocation={requestLocation}
         geoStatus={{ hasLocation: !!userLocation, isLoading: geoLoading, error: geoError }}
       />
@@ -285,7 +277,10 @@ export const MapDetailPage = () => {
             distanceKm: location.distanceKm,
             isOpenNow: location.isOpenNow,
             googlePlaceId: location.google_place_id,
-            reviewSummaries: location.reviewSummaries,
+            website: location.website,
+            phone: location.phone,
+            openingHours: location.opening_hours,
+            notes: location.notes,
           }))}
           canEdit={canEdit}
           onEdit={(locationId) => {
@@ -318,9 +313,20 @@ export const MapDetailPage = () => {
               latitude: location.latitude,
               longitude: location.longitude,
               description: location.description,
+              type: location.type,
             }))}
             onSelectLocation={(locationId) => setSelectedLocationId(locationId)}
             center={mapCenter as [number, number]}
+            userLocation={
+              userLocation
+                ? {
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                    accuracy: userLocation.accuracy ?? null,
+                  }
+                : null
+            }
+            onRequestLocation={requestLocation}
           />
           <Card className="border-border/80 bg-background/80">
             <CardHeader>
@@ -368,59 +374,88 @@ export const MapDetailPage = () => {
                 ))}
                 {membership?.role === "owner" ? (
                   <div className="rounded-lg border border-dashed border-border/80 p-3">
-                    <p className="mb-2 text-xs font-medium text-foreground">Invite collaborator</p>
+                    <p className="mb-2 text-xs font-medium text-foreground">Invite collaborators</p>
                     <div className="flex flex-col gap-2">
-                      <Input
-                        placeholder="teammate@example.com"
-                        value={inviteEmail}
-                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                          setInviteEmail(event.target.value)
-                        }
-                      />
                       <div className="flex items-center gap-2 text-xs">
                         <label className="text-muted-foreground">Role</label>
                         <select
                           value={inviteRole}
-                          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                            setInviteRole(event.target.value as MapRecord["member_role"])
-                          }
+                          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                            setInviteRole(event.target.value as MapRecord["member_role"]);
+                            setInviteLink(null);
+                          }}
                           className="h-9 rounded-md border border-border bg-background px-2 text-sm"
                         >
                           <option value="viewer">Viewer</option>
                           <option value="editor">Editor</option>
                         </select>
                       </div>
-                      <Button
-                        size="sm"
-                        disabled={isInviting || !inviteEmail}
-                        onClick={async () => {
-                          try {
-                            setIsInviting(true);
-                            const { data, error: profileError } = await supabase
-                              .from("profiles")
-                              .select("id")
-                              .eq("email", inviteEmail.trim())
-                              .maybeSingle();
-                            const profileRecord = data as { id: string } | null;
-                            if (profileError || !profileRecord) {
-                              throw new Error(
-                                profileError?.message ?? "No profile found for that email"
-                              );
-                            }
-                            await addMapMember(supabase, mapData.id, profileRecord.id, inviteRole ?? "viewer");
-                            await refetch();
-                            setInviteEmail("");
-                            toast.success("Collaborator added");
-                          } catch (inviteError) {
-                            const message = inviteError instanceof Error ? inviteError.message : "Unable to add collaborator";
-                            toast.error(message);
-                          } finally {
-                            setIsInviting(false);
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          readOnly
+                          value={
+                            inviteLink ?? "Generate a link to share with your collaborators"
                           }
-                        }}
-                      >
-                        {isInviting ? "Adding..." : "Add"}
-                      </Button>
+                          className="sm:flex-1"
+                          onFocus={(event) => event.currentTarget.select()}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (!mapData) return;
+                            try {
+                              setIsGeneratingInvite(true);
+                              if (!inviteLink) {
+                                const { data, error } = await supabase.rpc("create_map_invite_link", {
+                                  target_map_id: mapData.id,
+                                  invite_role: inviteRole ?? "viewer",
+                                });
+
+                                if (error) {
+                                  throw error;
+                                }
+
+                                const token =
+                                  typeof data === "object" && data !== null && "token" in data
+                                    ? (data as { token?: string }).token
+                                    : undefined;
+
+                                if (!token) {
+                                  throw new Error("Failed to generate invite link");
+                                }
+
+                                const generatedLink = `${window.location.origin}/invite/${token}`;
+                                setInviteLink(generatedLink);
+                                await navigator.clipboard.writeText(generatedLink);
+                                toast.success("Invite link copied to your clipboard");
+                              } else {
+                                await navigator.clipboard.writeText(inviteLink);
+                                toast.success("Invite link copied to your clipboard");
+                              }
+                            } catch (inviteError) {
+                              const message =
+                                inviteError instanceof Error
+                                  ? inviteError.message
+                                  : "Unable to generate invite link";
+                              toast.error(message);
+                            } finally {
+                              setIsGeneratingInvite(false);
+                            }
+                          }}
+                          disabled={isGeneratingInvite}
+                          className="sm:w-36"
+                        >
+                          {isGeneratingInvite
+                            ? "Generating..."
+                            : inviteLink
+                              ? "Copy link"
+                              : "Generate link"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Anyone with this link can join as a {inviteRole}. Generate a new link to rotate access at any
+                        time.
+                      </p>
                     </div>
                   </div>
                 ) : null}
@@ -444,6 +479,7 @@ export const MapDetailPage = () => {
             await mapMutations.createLocation(payload);
           }
         }}
+        mapId={effectiveMapId}
       />
 
       <ReviewDialog

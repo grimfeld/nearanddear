@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 type GeolocationState = {
   latitude: number;
   longitude: number;
+  accuracy: number | null;
 };
 
 export const useGeolocation = () => {
@@ -22,6 +23,7 @@ export const useGeolocation = () => {
         setLocation({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
         });
         setError(null);
         setIsLoading(false);

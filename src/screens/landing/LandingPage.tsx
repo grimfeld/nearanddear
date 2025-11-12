@@ -28,7 +28,7 @@ export const LandingPage = () => {
       <header className="border-b border-border/80">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2 text-lg font-semibold">
-            <MapPinned className="h-5 w-5" /> Mapri
+            <MapPinned className="h-5 w-5" /> Near & Dear
           </div>
           <nav className="flex items-center gap-3 text-sm font-medium">
             <Link to="/auth/sign-in" className="text-muted-foreground hover:text-foreground">
@@ -45,13 +45,13 @@ export const LandingPage = () => {
         <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="space-y-6">
             <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-              Inspired by mapri.grimfeld.tech
+              Inspired by nearanddear.grimfeld.tech
             </span>
             <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
               Collaborative maps built for teams discovering places they love.
             </h1>
             <p className="max-w-xl text-base text-muted-foreground">
-              Mapri helps groups create curated guides, leave contextual reviews, and plan outings together. Build shared knowledge, surface trusted recommendations, and keep everything in sync across map and list views.
+              Near & Dear helps groups create curated guides, leave contextual reviews, and plan outings together. Build shared knowledge, surface trusted recommendations, and keep everything in sync across map and list views.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" asChild>

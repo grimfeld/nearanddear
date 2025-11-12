@@ -12,7 +12,7 @@ export const AuthLayout = ({ heading, subheading, children, footer }: AuthLayout
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/40">
       <header className="flex items-center justify-between px-6 py-6">
         <Link to="/" className="text-lg font-semibold tracking-tight">
-          Mapri
+          Near & Dear
         </Link>
         <Link to="/auth/sign-in" className="text-sm text-muted-foreground hover:text-foreground">
           Back to sign in

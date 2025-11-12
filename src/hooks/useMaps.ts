@@ -34,6 +34,11 @@ export const useMaps = () => {
       return getMapsForUser(supabase, user.id);
     },
     enabled: !!user,
+    refetchOnMount: true,
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to load maps";
+      toast.error(message);
+    },
   });
 
   const mutateCreate = useMutation({

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Compass, Home, User } from "lucide-react";
+import { Compass, Home, Sparkles, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,11 @@ const links = [
     to: "/app/dashboard",
     label: "Dashboard",
     icon: Home,
+  },
+  {
+    to: "/app/discover",
+    label: "Discover",
+    icon: Sparkles,
   },
   {
     to: "/app/profile",
@@ -22,7 +27,7 @@ export const Sidebar = () => {
     <aside className="hidden min-h-screen w-64 border-r border-border/80 bg-background/95 px-4 py-6 lg:block">
       <div className="mb-8 flex items-center gap-2 text-lg font-semibold">
         <Compass className="h-5 w-5" />
-        Mapri Collaborative
+        Near & Dear Collaborative
       </div>
       <div className="space-y-1">
         {links.map(({ to, label, icon: Icon }) => (

@@ -29,22 +29,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Helper to add timeout to promises
+  const withTimeout = useCallback(<T,>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
+    });
+  }, []);
+
+  const ensureInvitesAccepted = useCallback(async () => {
+    try {
+      const { error } = await withTimeout(
+        supabase.rpc("accept_map_invites"),
+        10000, // 10 second timeout
+        "accept_map_invites"
+      );
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to accept map invites", error);
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("accept_map_invites timed out or failed", error);
+    }
+  }, [supabase, withTimeout]);
 
   const loadProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+        10000, // 10 second timeout
+        "loadProfile"
+      );
 
-    if (error) {
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to load profile", error);
+        return;
+      }
+
+      setProfile(data ?? null);
+    } catch (error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to load profile", error);
-      return;
+      console.error("loadProfile timed out or failed", error);
     }
-
-    setProfile(data ?? null);
-  }, [supabase]);
+  }, [supabase, withTimeout]);
 
   const refreshProfile = useCallback(async () => {
     if (user) {
@@ -56,27 +96,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true;
 
     const initSession = async () => {
-      setLoading(true);
-      const {
-        data: { session: initialSession },
-        error,
-      } = await supabase.auth.getSession();
+      try {
+        setLoading(true);
+        const {
+          data: { session: initialSession },
+          error,
+        } = await supabase.auth.getSession();
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      if (error) {
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to get session", error);
+        }
+
+        setSession(initialSession ?? null);
+        setUser(initialSession?.user ?? null);
+
+        // Resolve loading state immediately after session is set
+        // Don't block on profile/invites loading - they can load in background
+        if (isMounted) {
+          setLoading(false);
+        }
+
+        // Load profile and invites in background (don't block on these)
+        if (initialSession?.user && isMounted) {
+          // Run both operations in parallel, with timeouts
+          // Promise.allSettled never rejects, so errors are already handled in the functions
+          Promise.allSettled([
+            loadProfile(initialSession.user.id),
+            ensureInvitesAccepted(),
+          ]);
+        }
+      } catch (error) {
         // eslint-disable-next-line no-console
-        console.error("Failed to get session", error);
+        console.error("Error during session initialization", error);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-
-      setSession(initialSession ?? null);
-      setUser(initialSession?.user ?? null);
-
-      if (initialSession?.user) {
-        await loadProfile(initialSession.user.id);
-      }
-
-      setLoading(false);
     };
 
     initSession();
@@ -84,13 +142,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      try {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
 
-      if (nextSession?.user) {
-        await loadProfile(nextSession.user.id);
-      } else {
-        setProfile(null);
+        if (nextSession?.user) {
+          // Load profile and invites in parallel (non-blocking, with timeouts)
+          // Errors are already handled within loadProfile and ensureInvitesAccepted
+          Promise.allSettled([
+            loadProfile(nextSession.user.id),
+            ensureInvitesAccepted(),
+          ]);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Error during auth state change", error);
       }
     });
 
@@ -98,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [loadProfile, supabase]);
+  }, [loadProfile, ensureInvitesAccepted, supabase]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

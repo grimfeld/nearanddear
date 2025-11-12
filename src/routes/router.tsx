@@ -3,11 +3,12 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { DashboardPage } from "@/screens/dashboard/DashboardPage";
+import { DiscoverPage } from "@/screens/discover/DiscoverPage";
 import { LandingPage } from "@/screens/landing/LandingPage";
 import { MapDetailPage } from "@/screens/map-detail/MapDetailPage";
 import { ProfilePage } from "@/screens/profile/ProfilePage";
-import { SignInPage } from "@/screens/auth/SignInPage";
-import { SignUpPage } from "@/screens/auth/SignUpPage";
+import { AuthPage } from "@/screens/auth/AuthPage";
+import { InvitePage } from "@/screens/invite/InvitePage";
 
 export const router = createBrowserRouter([
   {
@@ -15,12 +16,16 @@ export const router = createBrowserRouter([
     element: <LandingPage />,
   },
   {
+    path: "/invite/:token",
+    element: <InvitePage />,
+  },
+  {
     path: "/auth/sign-in",
-    element: <SignInPage />,
+    element: <AuthPage />,
   },
   {
     path: "/auth/sign-up",
-    element: <SignUpPage />,
+    element: <AuthPage />,
   },
   {
     path: "/app",
@@ -39,6 +44,10 @@ export const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
+        path: "discover",
+        element: <DiscoverPage />,
+      },
+      {
         path: "maps/:mapId",
         element: <MapDetailPage />,
       },
@@ -53,4 +62,3 @@ export const router = createBrowserRouter([
     element: <Navigate to="/" replace />,
   },
 ]);
-
